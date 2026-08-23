@@ -3,14 +3,14 @@
 <div class="max-w-5xl w-full mx-auto px-4 py-8">
 
   <!-- Admin Nav -->
-  <div class="flex flex-wrap items-center justify-between gap-4 mb-8 pb-4 border-b border-dark-800">
+  <div class="flex flex-wrap items-center justify-between gap-4 mb-6 pb-4 border-b border-dark-800">
     <div class="flex items-center gap-3">
       <div class="w-10 h-10 bg-brand-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-brand-500/20">
         M
       </div>
       <div>
         <h1 class="text-lg font-bold text-white">Mirror Hub Admin</h1>
-        <p class="text-xs text-slate-400">Manage releases & Universal Host Weights</p>
+        <p class="text-xs text-slate-400">Manage releases, hosts & download metrics</p>
       </div>
     </div>
     <div class="flex items-center gap-2">
@@ -23,9 +23,33 @@
     </div>
   </div>
 
+  <!-- ANALYTICS SUMMARY OVERVIEW BAR -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
+    <div class="bg-dark-900 border border-dark-800 p-4 rounded-2xl shadow-lg">
+      <p class="text-[11px] font-semibold uppercase text-slate-400">Total Downloads</p>
+      <p class="text-2xl font-black text-white mt-1"><%= stats.totalDownloads %></p>
+      <p class="text-[10px] text-brand-500 mt-0.5"><i class="fa-solid fa-chart-line mr-1"></i>All-time clicks</p>
+    </div>
+    <div class="bg-dark-900 border border-dark-800 p-4 rounded-2xl shadow-lg">
+      <p class="text-[11px] font-semibold uppercase text-slate-400">Past 24 Hours</p>
+      <p class="text-2xl font-black text-emerald-400 mt-1"><%= stats.downloads24h %></p>
+      <p class="text-[10px] text-slate-500 mt-0.5">Recent traffic</p>
+    </div>
+    <div class="bg-dark-900 border border-dark-800 p-4 rounded-2xl shadow-lg">
+      <p class="text-[11px] font-semibold uppercase text-slate-400">Top Host</p>
+      <p class="text-base font-bold text-white truncate mt-1"><%= stats.topHostName %></p>
+      <p class="text-[10px] text-slate-400 mt-0.5"><%= stats.topHostClicks %> clicks recorded</p>
+    </div>
+    <div class="bg-dark-900 border border-dark-800 p-4 rounded-2xl shadow-lg">
+      <p class="text-[11px] font-semibold uppercase text-slate-400">Active Releases</p>
+      <p class="text-2xl font-black text-white mt-1"><%= releases.length %></p>
+      <p class="text-[10px] text-slate-500 mt-0.5">Public links live</p>
+    </div>
+  </div>
+
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
-    <!-- RELEASES LIST -->
+    <!-- RELEASES LIST WITH ANALYTICS -->
     <div class="lg:col-span-2 space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="font-bold text-white text-sm">Active Releases (<%= releases.length %>)</h2>
@@ -39,36 +63,62 @@
           </div>
         <% } else { %>
           <% releases.forEach(r => { %>
-            <div class="p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-dark-800/30 transition">
-              <div class="space-y-1">
-                <div class="flex items-center gap-2">
-                  <span class="font-bold text-white text-base"><%= r.title %></span>
-                  <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full <%= r.mode === 'simple' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-brand-500/10 text-brand-400 border border-brand-500/20' %>">
-                    <%= r.mode %>
-                  </span>
+            <div class="p-4 sm:p-5 flex flex-col gap-3 hover:bg-dark-800/30 transition">
+              <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <span class="font-bold text-white text-base"><%= r.title %></span>
+                    <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full <%= r.mode === 'simple' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-brand-500/10 text-brand-400 border border-brand-500/20' %>">
+                      <%= r.mode %>
+                    </span>
+                  </div>
+                  <div class="text-xs text-slate-400 flex flex-wrap items-center gap-3">
+                    <span class="font-mono text-brand-500">/<%= r.slug %></span>
+                    <span>&bull;</span>
+                    <span><%= r.mirror_count %> mirrors</span>
+                    <span>&bull;</span>
+                    <span class="text-white font-semibold"><i class="fa-solid fa-download mr-1 text-brand-500"></i><%= r.total_clicks %> clicks</span>
+                  </div>
                 </div>
-                <div class="text-xs text-slate-400 flex flex-wrap items-center gap-3">
-                  <span class="font-mono text-brand-500">/<%= r.slug %></span>
-                  <span>&bull;</span>
-                  <span><%= r.mirror_count %> mirrors</span>
-                  <span>&bull;</span>
-                  <span><%= r.total_clicks %> downloads</span>
+
+                <div class="flex items-center gap-2 shrink-0">
+                  <button onclick="openBBCodeModal(<%= JSON.stringify(r) %>)" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1.5" title="Copy XDA BBCode">
+                    <i class="fa-solid fa-code text-brand-500"></i> BBCode
+                  </button>
+                  <a href="/<%= r.slug %>" target="_blank" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                  </a>
+                  <form action="/admin/release/<%= r.id %>/delete" method="POST" onsubmit="return confirm('Delete this release and its analytics?')">
+                    <button type="submit" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-semibold rounded-xl transition border border-red-500/20">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </form>
                 </div>
               </div>
 
-              <div class="flex items-center gap-2 shrink-0">
-                <button onclick="copyBBCode('<%= r.title %>', '<%= protocol %>://<%= host %>/<%= r.slug %>')" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1.5" title="Copy XDA BBCode">
-                  <i class="fa-solid fa-code text-brand-500"></i> BBCode
-                </button>
-                <a href="/<%= r.slug %>" target="_blank" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700">
-                  <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                </a>
-                <form action="/admin/release/<%= r.id %>/delete" method="POST" onsubmit="return confirm('Delete this release?')">
-                  <button type="submit" class="px-2.5 py-1.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-semibold rounded-xl transition border border-red-500/20">
-                    <i class="fa-solid fa-trash"></i>
-                  </button>
-                </form>
-              </div>
+              <!-- Host Analytics Breakdown per Mirror -->
+              <% if (r.mirrors && r.mirrors.length > 0) { %>
+                <div class="bg-dark-950/80 p-3 rounded-2xl border border-dark-800 space-y-1.5 mt-1">
+                  <div class="text-[11px] font-semibold text-slate-400 mb-1 flex justify-between">
+                    <span>Mirror Click Breakdown</span>
+                    <span class="font-mono text-slate-500"><%= r.total_clicks %> total</span>
+                  </div>
+                  <% r.mirrors.forEach(m => { 
+                    const percent = r.total_clicks > 0 ? Math.round((m.clicks / r.total_clicks) * 100) : 0;
+                  %>
+                    <div class="space-y-0.5">
+                      <div class="flex justify-between text-xs font-medium">
+                        <span class="text-slate-300"><%= m.provider %></span>
+                        <span class="text-slate-400 font-mono"><%= m.clicks %> clicks (<%= percent %>%)</span>
+                      </div>
+                      <div class="w-full h-1.5 bg-dark-800 rounded-full overflow-hidden">
+                        <div class="h-full bg-brand-500 rounded-full" style="width: <%= percent %>%"></div>
+                      </div>
+                    </div>
+                  <% }); %>
+                </div>
+              <% } %>
+
             </div>
           <% }); %>
         <% } %>
@@ -82,15 +132,13 @@
         <p class="text-xs text-slate-400">Drag hosts to change their rank globally.</p>
       </div>
 
-      <!-- Add New Host Input -->
       <div class="flex gap-2">
-        <input type="text" id="newHostName" placeholder="Add custom host (e.g. Pixeldrain)" class="flex-grow bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+        <input type="text" id="newHostName" placeholder="Add custom host (e.g. Gofile)" class="flex-grow bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
         <button onclick="addCustomHost()" class="px-3 py-2 bg-dark-800 hover:bg-dark-700 border border-dark-700 text-brand-500 text-xs font-bold rounded-xl transition">
           + Add
         </button>
       </div>
 
-      <!-- Drag & Drop Host Playlist -->
       <div id="universalHostsList" class="bg-dark-900 border border-dark-800 rounded-3xl p-3 space-y-2 shadow-xl">
         <% hosts.forEach((h, idx) => { %>
           <div class="host-item flex items-center justify-between p-2.5 bg-dark-800/80 border border-dark-700/60 rounded-2xl cursor-default transition" data-id="<%= h.id %>">
@@ -110,6 +158,38 @@
       <p id="saveStatus" class="text-[11px] text-emerald-500 text-center hidden"><i class="fa-solid fa-check mr-1"></i>Priority updated universally!</p>
     </div>
 
+  </div>
+</div>
+
+<!-- ==================== BBCODE GENERATOR MODAL ==================== -->
+<div id="bbcodeModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-dark-900 border border-dark-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+    <div class="p-5 border-b border-dark-800 flex items-center justify-between">
+      <div>
+        <h3 class="text-base font-bold text-white"><i class="fa-solid fa-code text-brand-500 mr-1.5"></i>XDA Forum BBCode</h3>
+        <p class="text-xs text-slate-400">Ready to paste directly into your XDA thread</p>
+      </div>
+      <button onclick="document.getElementById('bbcodeModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <div class="flex gap-2">
+        <button type="button" onclick="switchBBCodeStyle('button')" id="btnBBStyleButton" class="flex-1 py-1.5 text-xs font-bold rounded-xl bg-brand-500 text-white transition">
+          Direct Button
+        </button>
+        <button type="button" onclick="switchBBCodeStyle('full')" id="btnBBStyleFull" class="flex-1 py-1.5 text-xs font-bold rounded-xl bg-dark-800 text-slate-300 border border-dark-700 transition">
+          Full Release Post
+        </button>
+      </div>
+
+      <textarea id="bbcodeOutput" rows="6" readonly class="w-full bg-dark-950 border border-dark-800 rounded-2xl p-3 text-xs font-mono text-slate-200 select-all focus:outline-none focus:border-brand-500"></textarea>
+
+      <button onclick="copyBBCodeToClipboard()" class="w-full py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
+        <i class="fa-regular fa-copy" id="bbCopyIcon"></i> <span id="bbCopyText">Copy BBCode</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -223,13 +303,15 @@
   </div>
 </div>
 
-<!-- Pass hosts safely to JS -->
 <script id="hosts-data" type="application/json">
   <%- JSON.stringify(hosts) %>
 </script>
 
 <script>
   const globalHosts = JSON.parse(document.getElementById('hosts-data').textContent);
+  let activeBBCodeRelease = null;
+  const currentHost = "<%= host %>";
+  const currentProtocol = "<%= protocol %>";
 
   document.addEventListener('DOMContentLoaded', () => {
     const hostListEl = document.getElementById('universalHostsList');
@@ -283,11 +365,7 @@
       body: JSON.stringify({ name })
     });
 
-    if (res.ok) {
-      window.location.reload();
-    } else {
-      alert('Could not add host (already exists)');
-    }
+    if (res.ok) window.location.reload();
   }
 
   async function deleteHost(id) {
@@ -370,10 +448,63 @@
     }
   }
 
-  function copyBBCode(title, url) {
-    const bbcode = `[SIZE=4][B]${title}[/B][/SIZE]\n[URL='${url}'][B][COLOR=#f97316]Download via Mirrors (Fast & Direct)[/COLOR][/B][/URL]`;
-    navigator.clipboard.writeText(bbcode);
-    alert('Copied XDA BBCode to clipboard!');
+  // ==================== ROBUST BBCODE GENERATOR ====================
+  function openBBCodeModal(release) {
+    activeBBCodeRelease = release;
+    switchBBCodeStyle('button');
+    document.getElementById('bbcodeModal').classList.remove('hidden');
+  }
+
+  function switchBBCodeStyle(style) {
+    if (!activeBBCodeRelease) return;
+    const r = activeBBCodeRelease;
+    const fullUrl = `${currentProtocol}://${currentHost}/${r.slug}`;
+    const btnButton = document.getElementById('btnBBStyleButton');
+    const btnFull = document.getElementById('btnBBStyleFull');
+    const output = document.getElementById('bbcodeOutput');
+
+    if (style === 'button') {
+      btnButton.className = "flex-1 py-1.5 text-xs font-bold rounded-xl bg-brand-500 text-white transition";
+      btnFull.className = "flex-1 py-1.5 text-xs font-bold rounded-xl bg-dark-800 text-slate-300 border border-dark-700 transition";
+      output.value = `[CENTER][B][SIZE=5]${r.title}[/SIZE][/B]\n[URL='${fullUrl}'][SIZE=4][B][COLOR=#f97316]⚡ Download via Fast Mirrors[/COLOR][/B][/SIZE][/URL][/CENTER]`;
+    } else {
+      btnFull.className = "flex-1 py-1.5 text-xs font-bold rounded-xl bg-brand-500 text-white transition";
+      btnButton.className = "flex-1 py-1.5 text-xs font-bold rounded-xl bg-dark-800 text-slate-300 border border-dark-700 transition";
+      
+      let fullCode = `[CENTER][B][SIZE=5]${r.title}[/SIZE][/B][/CENTER]\n\n`;
+      if (r.device) fullCode += `[B]Device:[/B] ${r.device}\n`;
+      if (r.version) fullCode += `[B]Version:[/B] ${r.version}\n`;
+      if (r.file_size) fullCode += `[B]Size:[/B] ${r.file_size}\n`;
+      if (r.md5) fullCode += `[B]MD5:[/B] [FONT=monospace]${r.md5}[/FONT]\n`;
+      if (r.sha256) fullCode += `[B]SHA256:[/B] [FONT=monospace]${r.sha256}[/FONT]\n`;
+      fullCode += `\n[CENTER][URL='${fullUrl}'][SIZE=4][B][COLOR=#f97316]⚡ Download from Mirrors (Multi-Host)[/COLOR][/B][/SIZE][/URL][/CENTER]`;
+      output.value = fullCode;
+    }
+  }
+
+  function copyBBCodeToClipboard() {
+    const textarea = document.getElementById('bbcodeOutput');
+    textarea.select();
+    textarea.setSelectionRange(0, 99999);
+
+    try {
+      // Mobile-safe fallback
+      document.execCommand('copy');
+    } catch (e) {
+      if (navigator.clipboard) {
+        navigator.clipboard.writeText(textarea.value);
+      }
+    }
+
+    const btnText = document.getElementById('bbCopyText');
+    const btnIcon = document.getElementById('bbCopyIcon');
+    btnText.innerText = 'Copied to Clipboard!';
+    btnIcon.className = 'fa-solid fa-check';
+
+    setTimeout(() => {
+      btnText.innerText = 'Copy BBCode';
+      btnIcon.className = 'fa-regular fa-copy';
+    }, 2000);
   }
 </script>
 
