@@ -1,121 +1,131 @@
-<%- include('layout', { body: `
+<%- include('header') %>
+
 <div class="max-w-2xl w-full mx-auto px-4 py-8">
 
-  ${release.mode === 'simple' ? `
-    <!-- ==================== SIMPLE MODE UI ==================== -->
+  <% if (release.mode === 'simple') { %>
+    <!-- SIMPLE MODE UI -->
     <div class="bg-dark-900 border border-dark-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur text-center">
       <div class="w-16 h-16 bg-brand-500/10 border border-brand-500/20 text-brand-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-inner">
         <i class="fa-solid fa-file-arrow-down"></i>
       </div>
-      <h1 class="text-2xl font-bold text-white tracking-tight break-all mb-1 font-mono">${release.title}</h1>
+      <h1 class="text-2xl font-bold text-white tracking-tight break-all mb-1 font-mono"><%= release.title %></h1>
       <p class="text-xs text-slate-400 mb-8">Select a mirror below (automatically ranked by speed):</p>
 
       <div class="space-y-3">
-        ${mirrors.map((m, idx) => `
-          <a href="/dl/${m.id}" target="_blank" rel="noopener noreferrer"
+        <% mirrors.forEach((m, idx) => { %>
+          <a href="/dl/<%= m.id %>" target="_blank" rel="noopener noreferrer"
              class="group relative flex items-center justify-between p-4 rounded-2xl bg-dark-800 border border-dark-700 hover:border-brand-500/50 hover:bg-dark-700 transition duration-200 shadow-md">
             <div class="flex items-center gap-3.5">
               <span class="w-7 h-7 rounded-lg bg-dark-900 text-slate-400 flex items-center justify-center font-bold text-xs font-mono group-hover:text-brand-500 border border-dark-700">
-                #${idx + 1}
+                #<%= idx + 1 %>
               </span>
               <div class="text-left">
                 <span class="text-sm font-semibold text-white group-hover:text-brand-500 transition">
-                  Download from ${m.provider}
+                  Download from <%= m.provider %>
                 </span>
               </div>
             </div>
             <div class="flex items-center gap-2 text-slate-400 group-hover:text-white transition">
-              <i class="${m.host_icon} text-lg"></i>
+              <i class="<%= m.host_icon %> text-lg"></i>
               <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1 opacity-60"></i>
             </div>
           </a>
-        `).join('')}
+        <% }); %>
       </div>
     </div>
 
-  ` : `
+  <% } else { %>
 
-    <!-- ==================== COMPLEX MODE UI ==================== -->
+    <!-- COMPLEX MODE UI -->
     <div class="bg-dark-900 border border-dark-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur">
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-        ${release.device ? `
+        <% if (release.device) { %>
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/10 text-brand-500 border border-brand-500/20">
-            <i class="fa-solid fa-mobile-screen"></i> ${release.device}
-          </span>` : '<div></div>'}
-        ${release.version ? `
+            <i class="fa-solid fa-mobile-screen"></i> <%= release.device %>
+          </span>
+        <% } else { %>
+          <div></div>
+        <% } %>
+        <% if (release.version) { %>
           <span class="text-xs text-slate-400 font-mono bg-dark-800 px-3 py-1 rounded-full border border-dark-700">
-            ${release.version}
-          </span>` : ''}
+            <%= release.version %>
+          </span>
+        <% } %>
       </div>
 
-      <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white mb-4">${release.title}</h1>
+      <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white mb-4"><%= release.title %></h1>
 
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-        ${release.file_size ? `
+        <% if (release.file_size) { %>
           <div class="bg-dark-800/80 p-3 rounded-2xl border border-dark-700/50">
             <p class="text-slate-400 text-xs font-medium">File Size</p>
-            <p class="font-semibold text-slate-200 mt-0.5 text-sm"><i class="fa-solid fa-hard-drive text-brand-500 mr-1.5"></i>${release.file_size}</p>
-          </div>` : ''}
+            <p class="font-semibold text-slate-200 mt-0.5 text-sm"><i class="fa-solid fa-hard-drive text-brand-500 mr-1.5"></i><%= release.file_size %></p>
+          </div>
+        <% } %>
         <div class="bg-dark-800/80 p-3 rounded-2xl border border-dark-700/50">
           <p class="text-slate-400 text-xs font-medium">Uploaded</p>
-          <p class="font-semibold text-slate-200 mt-0.5 text-sm"><i class="fa-regular fa-calendar text-brand-500 mr-1.5"></i>${new Date(release.created_at).toLocaleDateString()}</p>
+          <p class="font-semibold text-slate-200 mt-0.5 text-sm"><i class="fa-regular fa-calendar text-brand-500 mr-1.5"></i><%= new Date(release.created_at).toLocaleDateString() %></p>
         </div>
         <div class="bg-dark-800/80 p-3 rounded-2xl border border-dark-700/50 col-span-2 sm:col-span-1">
           <p class="text-slate-400 text-xs font-medium">Mirrors</p>
-          <p class="font-semibold text-slate-200 mt-0.5 text-sm"><i class="fa-solid fa-network-wired text-brand-500 mr-1.5"></i>${mirrors.length} Online</p>
+          <p class="font-semibold text-slate-200 mt-0.5 text-sm"><i class="fa-solid fa-network-wired text-brand-500 mr-1.5"></i><%= mirrors.length %> Online</p>
         </div>
       </div>
 
-      ${(release.md5 || release.sha256) ? `
+      <% if (release.md5 || release.sha256) { %>
         <div class="bg-dark-950/80 rounded-2xl p-4 border border-dark-700/60 mb-6 space-y-2.5">
-          ${release.md5 ? `
+          <% if (release.md5) { %>
             <div class="flex items-center justify-between gap-2 text-xs font-mono">
               <span class="text-slate-500 shrink-0 font-bold">MD5</span>
-              <span class="truncate text-slate-300 select-all">${release.md5}</span>
-              <button onclick="copyHash('${release.md5}', this)" class="shrink-0 text-slate-400 hover:text-white px-2 py-1 bg-dark-800 rounded transition border border-dark-700">
+              <span class="truncate text-slate-300 select-all"><%= release.md5 %></span>
+              <button onclick="copyHash('<%= release.md5 %>', this)" class="shrink-0 text-slate-400 hover:text-white px-2 py-1 bg-dark-800 rounded transition border border-dark-700">
                 <i class="fa-regular fa-copy"></i>
               </button>
-            </div>` : ''}
-          ${release.sha256 ? `
+            </div>
+          <% } %>
+          <% if (release.sha256) { %>
             <div class="flex items-center justify-between gap-2 text-xs font-mono">
               <span class="text-slate-500 shrink-0 font-bold">SHA256</span>
-              <span class="truncate text-slate-300 select-all">${release.sha256}</span>
-              <button onclick="copyHash('${release.sha256}', this)" class="shrink-0 text-slate-400 hover:text-white px-2 py-1 bg-dark-800 rounded transition border border-dark-700">
+              <span class="truncate text-slate-300 select-all"><%= release.sha256 %></span>
+              <button onclick="copyHash('<%= release.sha256 %>', this)" class="shrink-0 text-slate-400 hover:text-white px-2 py-1 bg-dark-800 rounded transition border border-dark-700">
                 <i class="fa-regular fa-copy"></i>
               </button>
-            </div>` : ''}
-        </div>` : ''}
+            </div>
+          <% } %>
+        </div>
+      <% } %>
 
       <div class="space-y-3 mb-6">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Available Mirrors</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          ${mirrors.map((m, idx) => `
-            <a href="/dl/${m.id}" target="_blank" rel="noopener noreferrer"
+          <% mirrors.forEach((m, idx) => { %>
+            <a href="/dl/<%= m.id %>" target="_blank" rel="noopener noreferrer"
                class="flex items-center justify-between p-3.5 rounded-2xl bg-dark-800 border border-dark-700 hover:border-brand-500 hover:bg-dark-700/70 transition group">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-xl bg-dark-900 border border-dark-700 flex items-center justify-center text-slate-400 group-hover:text-brand-500 transition">
-                  <i class="${m.host_icon}"></i>
+                  <i class="<%= m.host_icon %>"></i>
                 </div>
                 <div>
-                  <div class="text-sm font-semibold text-white">${m.provider}</div>
-                  <div class="text-[10px] text-slate-400 font-mono">Rank #${idx + 1}</div>
+                  <div class="text-sm font-semibold text-white"><%= m.provider %></div>
+                  <div class="text-[10px] text-slate-400 font-mono">Rank #<%= idx + 1 %></div>
                 </div>
               </div>
               <i class="fa-solid fa-arrow-down text-slate-500 group-hover:text-brand-500 transition mr-2"></i>
             </a>
-          `).join('')}
+          <% }); %>
         </div>
       </div>
 
-      ${changelogHtml ? `
+      <% if (changelogHtml) { %>
         <div class="border-t border-dark-700/80 pt-6">
           <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Changelog & Notes</h3>
           <div class="prose prose-invert prose-sm max-w-none text-slate-300 bg-dark-950/50 p-4 rounded-2xl border border-dark-800">
-            ${changelogHtml}
+            <%- changelogHtml %>
           </div>
-        </div>` : ''}
+        </div>
+      <% } %>
     </div>
-  `}
+  <% } %>
 
 </div>
 
@@ -127,4 +137,5 @@
     setTimeout(() => btn.innerHTML = orig, 1500);
   }
 </script>
-` }) %>
+
+<%- include('footer') %>
