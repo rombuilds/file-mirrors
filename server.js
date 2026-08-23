@@ -10,7 +10,6 @@ const PORT = process.env.PORT || 3000;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'secret-xda-mirror-key';
 
-// Ensure data directory exists for SQLite
 const dataDir = process.env.DATA_DIR || path.join(__dirname, 'data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
@@ -21,6 +20,13 @@ db.pragma('journal_mode = WAL');
 
 // Initialize database schema
 db.exec(`
+  CREATE TABLE IF NOT EXISTS hosts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT UNIQUE NOT NULL,
+    icon TEXT DEFAULT 'fa-solid fa-cloud-arrow-down',
+    weight INTEGER DEFAULT 0
+  );
+
   CREATE TABLE IF NOT EXISTS releases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     slug TEXT UNIQUE NOT NULL,
@@ -40,11 +46,26 @@ db.exec(`
     release_id INTEGER NOT NULL,
     provider TEXT NOT NULL,
     url TEXT NOT NULL,
-    weight INTEGER DEFAULT 0,
     clicks INTEGER DEFAULT 0,
     FOREIGN KEY(release_id) REFERENCES releases(id) ON DELETE CASCADE
   );
 `);
+
+// Seed default universal hosts if empty
+const hostCount = db.prepare('SELECT COUNT(*) as count FROM hosts').get().count;
+if (hostCount === 0) {
+  const seedHosts = [
+    { name: 'GitHub Releases', icon: 'fa-brands fa-github', weight: 1000 },
+    { name: 'Catbox', icon: 'fa-solid fa-box-open', weight: 900 },
+    { name: 'SourceForge', icon: 'fa-solid fa-bolt', weight: 800 },
+    { name: 'Google Drive', icon: 'fa-brands fa-google-drive', weight: 700 },
+    { name: 'Mega', icon: 'fa-solid fa-m', weight: 600 },
+    { name: 'MediaFire', icon: 'fa-solid fa-fire', weight: 500 },
+    { name: 'AndroidFileHost', icon: 'fa-solid fa-server', weight: 400 }
+  ];
+  const insertHost = db.prepare('INSERT INTO hosts (name, icon, weight) VALUES (?, ?, ?)');
+  seedHosts.forEach(h => insertHost.run(h.name, h.icon, h.weight));
+}
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -60,17 +81,6 @@ app.use(session({
 function requireAuth(req, res, next) {
   if (req.session.isAdmin) return next();
   res.redirect('/admin/login');
-}
-
-function getProviderMeta(provider) {
-  const p = (provider || '').toLowerCase();
-  if (p.includes('github')) return { icon: 'fa-brands fa-github' };
-  if (p.includes('catbox') || p.includes('litterbox')) return { icon: 'fa-solid fa-box-open' };
-  if (p.includes('google') || p.includes('gdrive') || p.includes('drive')) return { icon: 'fa-brands fa-google-drive' };
-  if (p.includes('mega')) return { icon: 'fa-solid fa-m' };
-  if (p.includes('sourceforge')) return { icon: 'fa-solid fa-bolt' };
-  if (p.includes('mediafire')) return { icon: 'fa-solid fa-fire' };
-  return { icon: 'fa-solid fa-cloud-arrow-down' };
 }
 
 // -------------------------------------------------------------
@@ -94,6 +104,7 @@ app.get('/admin/logout', (req, res) => {
   res.redirect('/admin/login');
 });
 
+// Admin Dashboard
 app.get('/admin', requireAuth, (req, res) => {
   const releases = db.prepare(`
     SELECT r.*, 
@@ -103,9 +114,12 @@ app.get('/admin', requireAuth, (req, res) => {
     ORDER BY r.id DESC
   `).all();
 
-  res.render('admin', { releases, host: req.get('host'), protocol: req.protocol });
+  const hosts = db.prepare('SELECT * FROM hosts ORDER BY weight DESC, id ASC').all();
+
+  res.render('admin', { releases, hosts, host: req.get('host'), protocol: req.protocol });
 });
 
+// Create Release
 app.post('/admin/release', requireAuth, (req, res) => {
   const { slug, title, mode, device, version, file_size, md5, sha256, changelog, mirrors } = req.body;
   
@@ -129,11 +143,10 @@ app.post('/admin/release', requireAuth, (req, res) => {
   const releaseId = info.lastInsertRowid;
 
   if (mirrors && Array.isArray(mirrors)) {
-    const insertMirror = db.prepare('INSERT INTO mirrors (release_id, provider, url, weight) VALUES (?, ?, ?, ?)');
-    mirrors.forEach((m, index) => {
+    const insertMirror = db.prepare('INSERT INTO mirrors (release_id, provider, url) VALUES (?, ?, ?)');
+    mirrors.forEach(m => {
       if (m.url && m.provider) {
-        const weight = m.weight ? parseInt(m.weight) : (1000 - (index * 10));
-        insertMirror.run(releaseId, m.provider, m.url, weight);
+        insertMirror.run(releaseId, m.provider, m.url);
       }
     });
   }
@@ -141,13 +154,55 @@ app.post('/admin/release', requireAuth, (req, res) => {
   res.json({ success: true, slug });
 });
 
+// Delete Release
 app.post('/admin/release/:id/delete', requireAuth, (req, res) => {
   db.prepare('DELETE FROM releases WHERE id = ?').run(req.params.id);
   res.redirect('/admin');
 });
 
+// Universal Host: Add new host
+app.post('/admin/hosts/add', requireAuth, (req, res) => {
+  const { name } = req.body;
+  if (!name) return res.status(400).json({ error: 'Name required' });
+
+  // Get lowest weight to append to bottom
+  const lowest = db.prepare('SELECT MIN(weight) as min_weight FROM hosts').get();
+  const nextWeight = (lowest && lowest.min_weight !== null) ? lowest.min_weight - 10 : 100;
+
+  try {
+    db.prepare('INSERT INTO hosts (name, weight) VALUES (?, ?)').run(name.trim(), nextWeight);
+    res.json({ success: true });
+  } catch (err) {
+    res.status(400).json({ error: 'Host already exists' });
+  }
+});
+
+// Universal Host: Re-order / save weights (Playlist drag & drop)
+app.post('/admin/hosts/reorder', requireAuth, (req, res) => {
+  const { orderedHostIds } = req.body; // Array of IDs in top-to-bottom order
+  if (!Array.isArray(orderedHostIds)) return res.status(400).json({ error: 'Invalid data' });
+
+  const updateWeight = db.prepare('UPDATE hosts SET weight = ? WHERE id = ?');
+  const updateMany = db.transaction((ids) => {
+    ids.forEach((id, index) => {
+      // Top item gets highest weight (e.g. 10000, 9990, 9980...)
+      const weight = 10000 - (index * 10);
+      updateWeight.run(weight, id);
+    });
+  });
+
+  updateMany(orderedHostIds);
+  res.json({ success: true });
+});
+
+// Universal Host: Delete host
+app.post('/admin/hosts/:id/delete', requireAuth, (req, res) => {
+  db.prepare('DELETE FROM hosts WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 // -------------------------------------------------------------
-// 2. DOWNLOAD & MIRROR REDIRECT ROUTES
+// 2. DOWNLOAD & REDIRECT ROUTES
 // -------------------------------------------------------------
 
 app.get('/dl/:mirrorId', (req, res) => {
@@ -164,26 +219,27 @@ app.get('/', (req, res) => {
   res.redirect('/admin');
 });
 
-// -------------------------------------------------------------
-// 3. WILDCARD SLUG ROUTE
-// -------------------------------------------------------------
-
+// Download Landing Page (Mirrors dynamically sorted by Universal Host Weight)
 app.get('/:slug', (req, res) => {
   const release = db.prepare('SELECT * FROM releases WHERE slug = ?').get(req.params.slug);
   if (!release) return res.status(404).send('Release not found.');
 
-  const mirrors = db.prepare('SELECT * FROM mirrors WHERE release_id = ? ORDER BY weight DESC, id ASC').all(release.id);
-  
-  const mirrorsWithMeta = mirrors.map(m => ({
-    ...m,
-    meta: getProviderMeta(m.provider)
-  }));
+  // Join mirrors with the universal hosts table to sort strictly by global weight
+  const mirrors = db.prepare(`
+    SELECT m.*, 
+      COALESCE(h.weight, 0) as host_weight,
+      COALESCE(h.icon, 'fa-solid fa-cloud-arrow-down') as host_icon
+    FROM mirrors m
+    LEFT JOIN hosts h ON LOWER(TRIM(m.provider)) = LOWER(TRIM(h.name))
+    WHERE m.release_id = ?
+    ORDER BY host_weight DESC, m.id ASC
+  `).all(release.id);
 
   const changelogHtml = release.changelog ? marked.parse(release.changelog) : null;
 
   res.render('download', { 
     release, 
-    mirrors: mirrorsWithMeta, 
+    mirrors, 
     changelogHtml,
     host: req.get('host'),
     protocol: req.protocol
