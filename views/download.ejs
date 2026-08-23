@@ -8,7 +8,7 @@
         <i class="fa-solid fa-file-arrow-down"></i>
       </div>
       <h1 class="text-2xl font-bold text-white tracking-tight break-all mb-1 font-mono">${release.title}</h1>
-      <p class="text-xs text-slate-400 mb-8">Select a mirror below (ranked by speed and reliability):</p>
+      <p class="text-xs text-slate-400 mb-8">Select a mirror below (automatically ranked by speed):</p>
 
       <div class="space-y-3">
         ${mirrors.map((m, idx) => `
@@ -25,7 +25,7 @@
               </div>
             </div>
             <div class="flex items-center gap-2 text-slate-400 group-hover:text-white transition">
-              <i class="${m.meta.icon} text-lg"></i>
+              <i class="${m.host_icon} text-lg"></i>
               <i class="fa-solid fa-arrow-up-right-from-square text-xs ml-1 opacity-60"></i>
             </div>
           </a>
@@ -37,7 +37,6 @@
 
     <!-- ==================== COMPLEX MODE UI ==================== -->
     <div class="bg-dark-900 border border-dark-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl backdrop-blur">
-      <!-- Header Tags -->
       <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
         ${release.device ? `
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-brand-500/10 text-brand-500 border border-brand-500/20">
@@ -51,7 +50,6 @@
 
       <h1 class="text-2xl sm:text-3xl font-black tracking-tight text-white mb-4">${release.title}</h1>
 
-      <!-- Meta Grid -->
       <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         ${release.file_size ? `
           <div class="bg-dark-800/80 p-3 rounded-2xl border border-dark-700/50">
@@ -68,7 +66,6 @@
         </div>
       </div>
 
-      <!-- Checksums with 1-click copy -->
       ${(release.md5 || release.sha256) ? `
         <div class="bg-dark-950/80 rounded-2xl p-4 border border-dark-700/60 mb-6 space-y-2.5">
           ${release.md5 ? `
@@ -89,7 +86,6 @@
             </div>` : ''}
         </div>` : ''}
 
-      <!-- Weighted Mirrors List -->
       <div class="space-y-3 mb-6">
         <p class="text-xs font-semibold uppercase tracking-wider text-slate-400">Available Mirrors</p>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -98,7 +94,7 @@
                class="flex items-center justify-between p-3.5 rounded-2xl bg-dark-800 border border-dark-700 hover:border-brand-500 hover:bg-dark-700/70 transition group">
               <div class="flex items-center gap-3">
                 <div class="w-8 h-8 rounded-xl bg-dark-900 border border-dark-700 flex items-center justify-center text-slate-400 group-hover:text-brand-500 transition">
-                  <i class="${m.meta.icon}"></i>
+                  <i class="${m.host_icon}"></i>
                 </div>
                 <div>
                   <div class="text-sm font-semibold text-white">${m.provider}</div>
@@ -111,7 +107,6 @@
         </div>
       </div>
 
-      <!-- Changelog -->
       ${changelogHtml ? `
         <div class="border-t border-dark-700/80 pt-6">
           <h3 class="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-3">Changelog & Notes</h3>
