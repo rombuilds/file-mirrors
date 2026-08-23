@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= typeof title !== 'undefined' ? title : 'Mirror Hub' %></title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 500: '#f97316', 600: '#ea580c' },
+            dark: { 950: '#090a0f', 900: '#11121a', 800: '#1c1d29', 700: '#282a3a', 600: '#393c52' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .ghost-item { opacity: 0.4; background: #282a3a !important; border: 2px dashed #f97316 !important; }
+  </style>
+</head>
+<body class="bg-dark-950 text-slate-200 min-h-screen flex flex-col font-sans selection:bg-brand-500 selection:text-white">
+  <main class="flex-grow flex flex-col justify-center">
