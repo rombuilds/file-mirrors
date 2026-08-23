@@ -18,7 +18,7 @@ if (!fs.existsSync(dataDir)) {
 const db = new Database(path.join(dataDir, 'database.sqlite'));
 db.pragma('journal_mode = WAL');
 
-// Initialize database schema with Analytics Logging
+// Initialize database schema
 db.exec(`
   CREATE TABLE IF NOT EXISTS hosts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -123,13 +123,11 @@ app.get('/admin', requireAuth, (req, res) => {
     ORDER BY r.id DESC
   `).all();
 
-  // Attach mirrors list to each release for detailed analytics
   const getMirrors = db.prepare('SELECT id, provider, url, clicks FROM mirrors WHERE release_id = ? ORDER BY clicks DESC');
   releases.forEach(r => {
     r.mirrors = getMirrors.all(r.id);
   });
 
-  // Global Analytics
   const totalDownloads = db.prepare('SELECT COUNT(*) as count FROM click_logs').get().count;
   const downloads24h = db.prepare(`
     SELECT COUNT(*) as count FROM click_logs 
@@ -160,46 +158,103 @@ app.get('/admin', requireAuth, (req, res) => {
   });
 });
 
+// CREATE RELEASE
 app.post('/admin/release', requireAuth, (req, res) => {
   const { slug, title, mode, device, version, file_size, md5, sha256, changelog, mirrors } = req.body;
   
-  const insertRelease = db.prepare(`
-    INSERT INTO releases (slug, title, mode, device, version, file_size, md5, sha256, changelog)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+  try {
+    const insertRelease = db.prepare(`
+      INSERT INTO releases (slug, title, mode, device, version, file_size, md5, sha256, changelog)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
 
-  const info = insertRelease.run(
-    slug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-'),
-    title,
-    mode || 'complex',
-    device || null,
-    version || null,
-    file_size || null,
-    md5 ? md5.trim() : null,
-    sha256 ? sha256.trim() : null,
-    changelog || null
-  );
+    const info = insertRelease.run(
+      slug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-'),
+      title,
+      mode || 'complex',
+      device || null,
+      version || null,
+      file_size || null,
+      md5 ? md5.trim() : null,
+      sha256 ? sha256.trim() : null,
+      changelog || null
+    );
 
-  const releaseId = info.lastInsertRowid;
+    const releaseId = info.lastInsertRowid;
 
-  if (mirrors && Array.isArray(mirrors)) {
-    const insertMirror = db.prepare('INSERT INTO mirrors (release_id, provider, url) VALUES (?, ?, ?)');
-    mirrors.forEach(m => {
-      if (m.url && m.provider) {
-        insertMirror.run(releaseId, m.provider, m.url);
-      }
-    });
+    if (mirrors && Array.isArray(mirrors)) {
+      const insertMirror = db.prepare('INSERT INTO mirrors (release_id, provider, url) VALUES (?, ?, ?)');
+      mirrors.forEach(m => {
+        if (m.url && m.provider) {
+          insertMirror.run(releaseId, m.provider, m.url);
+        }
+      });
+    }
+
+    res.json({ success: true, slug });
+  } catch (err) {
+    res.status(400).json({ error: 'Slug already exists. Choose a unique slug.' });
   }
-
-  res.json({ success: true, slug });
 });
 
+// EDIT RELEASE
+app.post('/admin/release/:id/edit', requireAuth, (req, res) => {
+  const releaseId = req.params.id;
+  const { slug, title, mode, device, version, file_size, md5, sha256, changelog, mirrors } = req.body;
+
+  try {
+    const updateRelease = db.prepare(`
+      UPDATE releases 
+      SET slug = ?, title = ?, mode = ?, device = ?, version = ?, file_size = ?, md5 = ?, sha256 = ?, changelog = ?
+      WHERE id = ?
+    `);
+
+    updateRelease.run(
+      slug.toLowerCase().trim().replace(/[^a-z0-9-_]/g, '-'),
+      title,
+      mode || 'complex',
+      device || null,
+      version || null,
+      file_size || null,
+      md5 ? md5.trim() : null,
+      sha256 ? sha256.trim() : null,
+      changelog || null,
+      releaseId
+    );
+
+    // Preserve existing click counts for unchanged mirror URLs
+    const existingMirrors = db.prepare('SELECT * FROM mirrors WHERE release_id = ?').all(releaseId);
+    const clicksMap = new Map();
+    existingMirrors.forEach(m => {
+      clicksMap.set(m.provider + '|' + m.url, m.clicks || 0);
+    });
+
+    db.prepare('DELETE FROM mirrors WHERE release_id = ?').run(releaseId);
+
+    if (mirrors && Array.isArray(mirrors)) {
+      const insertMirror = db.prepare('INSERT INTO mirrors (release_id, provider, url, clicks) VALUES (?, ?, ?, ?)');
+      mirrors.forEach(m => {
+        if (m.url && m.provider) {
+          const prevClicks = clicksMap.get(m.provider + '|' + m.url) || 0;
+          insertMirror.run(releaseId, m.provider, m.url, prevClicks);
+        }
+      });
+    }
+
+    res.json({ success: true, slug });
+  } catch (err) {
+    res.status(400).json({ error: 'Failed to update release. Slug might already be in use.' });
+  }
+});
+
+// DELETE RELEASE
 app.post('/admin/release/:id/delete', requireAuth, (req, res) => {
   db.prepare('DELETE FROM releases WHERE id = ?').run(req.params.id);
   db.prepare('DELETE FROM click_logs WHERE release_id = ?').run(req.params.id);
   res.redirect('/admin');
 });
 
+// UNIVERSAL HOST CONTROLLERS
 app.post('/admin/hosts/add', requireAuth, (req, res) => {
   const { name } = req.body;
   if (!name) return res.status(400).json({ error: 'Name required' });
@@ -237,14 +292,13 @@ app.post('/admin/hosts/:id/delete', requireAuth, (req, res) => {
 });
 
 // -------------------------------------------------------------
-// 2. DOWNLOAD & REDIRECT ROUTES (TRACKING CLICKS)
+// 2. DOWNLOAD & REDIRECT ROUTES
 // -------------------------------------------------------------
 
 app.get('/dl/:mirrorId', (req, res) => {
   const mirror = db.prepare('SELECT * FROM mirrors WHERE id = ?').get(req.params.mirrorId);
   if (!mirror) return res.status(404).send('Mirror link not found.');
 
-  // Increment mirror counter & log timestamp for analytics
   db.prepare('UPDATE mirrors SET clicks = clicks + 1 WHERE id = ?').run(mirror.id);
   db.prepare('INSERT INTO click_logs (release_id, mirror_id, provider) VALUES (?, ?, ?)').run(
     mirror.release_id,
@@ -281,8 +335,8 @@ app.get('/:slug', (req, res) => {
     release, 
     mirrors, 
     changelogHtml,
-    host: req.get('host'),
-    protocol: req.protocol
+    host: req.get('host'), 
+    protocol: req.protocol 
   });
 });
 
