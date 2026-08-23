@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  mirror-hub:
+    build: .
+    container_name: xda-mirror-hub
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - ADMIN_PASSWORD=your_secure_password_here
+      - SESSION_SECRET=change_this_to_a_long_random_string
+      - DATA_DIR=/data
+    volumes:
+      - mirror_data:/data
+
+volumes:
+  mirror_data:
+    driver: local
