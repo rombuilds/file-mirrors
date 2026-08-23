@@ -1,12 +1,10 @@
-version: '3.8'
-
 services:
   mirror-hub:
     build: .
     container_name: xda-mirror-hub
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3005:3000"
     environment:
       - PORT=3000
       - ADMIN_PASSWORD=your_secure_password_here
