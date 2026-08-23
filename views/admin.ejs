@@ -1,0 +1,314 @@
+<%- include('layout', { body: `
+<div class="max-w-5xl w-full mx-auto px-4 py-10">
+
+  <!-- Admin Nav -->
+  <div class="flex items-center justify-between mb-8 pb-4 border-b border-dark-800">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 bg-brand-500 text-white rounded-xl flex items-center justify-center font-black text-xl shadow-lg shadow-brand-500/20">
+        M
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white">Mirror Hub Admin</h1>
+        <p class="text-xs text-slate-400">Manage releases, weights & XDA links</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <button onclick="document.getElementById('createModal').classList.remove('hidden')" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-xl transition flex items-center gap-2 shadow-lg shadow-brand-500/20">
+        <i class="fa-solid fa-plus"></i> New Release
+      </button>
+      <a href="/admin/logout" class="px-3 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700">
+        Logout
+      </a>
+    </div>
+  </div>
+
+  <!-- Releases Table -->
+  <div class="bg-dark-900 border border-dark-800 rounded-3xl overflow-hidden shadow-xl">
+    <div class="p-5 border-b border-dark-800/80 flex items-center justify-between">
+      <h2 class="font-bold text-white text-sm">Active Releases (${releases.length})</h2>
+    </div>
+
+    ${releases.length === 0 ? `
+      <div class="text-center py-16 text-slate-500">
+        <i class="fa-solid fa-box-open text-4xl mb-3 opacity-40"></i>
+        <p class="text-sm">No releases published yet. Click "New Release" to get started.</p>
+      </div>
+    ` : `
+      <div class="divide-y divide-dark-800/60">
+        ${releases.map(r => `
+          <div class="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 hover:bg-dark-850/30 transition">
+            <div class="space-y-1">
+              <div class="flex items-center gap-2">
+                <span class="font-bold text-white text-base">${r.title}</span>
+                <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${r.mode === 'simple' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-brand-500/10 text-brand-400 border border-brand-500/20'}">
+                  ${r.mode}
+                </span>
+              </div>
+              <div class="text-xs text-slate-400 flex flex-wrap items-center gap-3">
+                <span class="font-mono text-brand-500">/${r.slug}</span>
+                <span>&bull;</span>
+                <span><i class="fa-solid fa-network-wired mr-1"></i>${r.mirror_count} mirrors</span>
+                <span>&bull;</span>
+                <span><i class="fa-solid fa-chart-simple mr-1"></i>${r.total_clicks} downloads</span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0">
+              <button onclick="copyBBCode('${r.title}', '${protocol}://${host}/${r.slug}')" class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1.5" title="Copy formatted code for XDA">
+                <i class="fa-solid fa-code text-brand-500"></i> XDA BBCode
+              </button>
+              <a href="/${r.slug}" target="_blank" class="px-3 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700">
+                <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              </a>
+              <form action="/admin/release/${r.id}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this release?')">
+                <button type="submit" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white text-xs font-semibold rounded-xl transition border border-red-500/20">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `}
+  </div>
+</div>
+
+<!-- ==================== CREATE RELEASE MODAL ==================== -->
+<div id="createModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-dark-900 border border-dark-700 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+    
+    <!-- Modal Header -->
+    <div class="p-6 border-b border-dark-800 flex items-center justify-between">
+      <div>
+        <h3 class="text-lg font-bold text-white">Create New Release</h3>
+        <p class="text-xs text-slate-400">Configure file details & weighted mirror list</p>
+      </div>
+      <button onclick="document.getElementById('createModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+
+    <!-- Modal Form -->
+    <form id="releaseForm" class="p-6 overflow-y-auto space-y-6 flex-grow">
+      
+      <!-- MODE TOGGLE -->
+      <div>
+        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Display Style Mode</label>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="flex items-center gap-3 p-3 rounded-2xl border border-dark-700 bg-dark-800 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/10">
+            <input type="radio" name="mode" value="simple" onchange="toggleMode('simple')" class="accent-brand-500">
+            <div>
+              <div class="text-sm font-bold text-white">Simple</div>
+              <div class="text-[11px] text-slate-400">Clean filename + fast mirrors</div>
+            </div>
+          </label>
+          <label class="flex items-center gap-3 p-3 rounded-2xl border border-dark-700 bg-dark-800 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/10">
+            <input type="radio" name="mode" value="complex" checked onchange="toggleMode('complex')" class="accent-brand-500">
+            <div>
+              <div class="text-sm font-bold text-white">Complex</div>
+              <div class="text-[11px] text-slate-400">Hashes, device, version, notes</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Main info -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1" id="titleLabel">Title / Filename *</label>
+          <input type="text" id="title" required placeholder="e.g. TWRP-3.7.1-recovery.img" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Custom URL Slug *</label>
+          <div class="flex items-center bg-dark-800 border border-dark-700 rounded-xl px-3 py-2">
+            <span class="text-xs text-slate-500">/</span>
+            <input type="text" id="slug" required placeholder="twrp-redmi-note10" class="w-full bg-transparent text-sm text-white focus:outline-none ml-1">
+          </div>
+        </div>
+      </div>
+
+      <!-- Complex-only fields -->
+      <div id="complexFields" class="space-y-4">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Device Name / Codename</label>
+            <input type="text" id="device" placeholder="e.g. Pixel 8 (shiba)" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">Build / Version</label>
+            <input type="text" id="version" placeholder="e.g. v14.0.2-Official" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">File Size</label>
+            <input type="text" id="file_size" placeholder="e.g. 1.85 GB / 64 MB" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">MD5 Checksum</label>
+            <input type="text" id="md5" placeholder="e.g. c282002da283..." class="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-brand-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-400 mb-1">SHA256 Checksum</label>
+            <input type="text" id="sha256" placeholder="e.g. a3b59f..." class="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-brand-500">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Changelog & Notes (Markdown)</label>
+          <textarea id="changelog" rows="3" placeholder="- Initial A14 support&#10;- Fixed fastbootd flashing" class="w-full bg-dark-800 border border-dark-700 rounded-xl px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-brand-500"></textarea>
+        </div>
+      </div>
+
+      <!-- SPOTIFY-STYLE PLAYLIST DRAG & DROP MIRRORS -->
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Host Weight & Mirrors (Playlist Queue)</label>
+            <p class="text-[11px] text-slate-500">Drag to re-order priority. Top item receives highest priority weight.</p>
+          </div>
+          <button type="button" onclick="addMirrorRow()" class="px-2.5 py-1 bg-dark-800 hover:bg-dark-700 text-brand-500 text-xs font-bold rounded-lg border border-dark-700 transition">
+            + Add Mirror
+          </button>
+        </div>
+
+        <!-- Sortable List Container -->
+        <div id="mirrorsContainer" class="space-y-2 min-h-[50px] p-2 bg-dark-950 rounded-2xl border border-dark-800">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+
+    </form>
+
+    <!-- Modal Footer -->
+    <div class="p-6 border-t border-dark-800 bg-dark-900 flex justify-end gap-3">
+      <button onclick="document.getElementById('createModal').classList.add('hidden')" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 text-sm font-semibold rounded-xl transition">
+        Cancel
+      </button>
+      <button onclick="submitRelease()" class="px-6 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm font-semibold rounded-xl transition shadow-lg shadow-brand-500/20">
+        Publish Release
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let sortable;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    const el = document.getElementById('mirrorsContainer');
+    sortable = Sortable.create(el, {
+      animation: 150,
+      handle: '.drag-handle',
+      ghostClass: 'ghost-item',
+      onEnd: updateIndices
+    });
+
+    // Default sample list based on ideal weight
+    addMirrorRow('GitHub', 'https://github.com/user/repo/releases/download/v1/file.zip');
+    addMirrorRow('Catbox', 'https://files.catbox.moe/abc123.img');
+    addMirrorRow('Google Drive', 'https://drive.google.com/file/d/xyz');
+  });
+
+  function toggleMode(mode) {
+    const complexFields = document.getElementById('complexFields');
+    if (mode === 'simple') {
+      complexFields.classList.add('hidden');
+    } else {
+      complexFields.classList.remove('hidden');
+    }
+  }
+
+  function addMirrorRow(provider = 'Catbox', url = '') {
+    const container = document.getElementById('mirrorsContainer');
+    const row = document.createElement('div');
+    row.className = 'mirror-row flex items-center gap-2 p-2.5 bg-dark-900 border border-dark-700/80 rounded-xl cursor-default transition';
+    row.innerHTML = \`
+      <div class="drag-handle cursor-grab active:cursor-grabbing text-slate-500 hover:text-brand-500 px-2 py-1">
+        <i class="fa-solid fa-grip-vertical"></i>
+      </div>
+      <span class="index-num text-xs font-mono font-bold text-slate-500 w-5">#1</span>
+      <select class="mirror-provider bg-dark-800 border border-dark-700 rounded-lg px-2 py-1.5 text-xs text-white focus:outline-none">
+        <option value="GitHub" \${provider === 'GitHub' ? 'selected' : ''}>GitHub</option>
+        <option value="Catbox" \${provider === 'Catbox' ? 'selected' : ''}>Catbox</option>
+        <option value="SourceForge" \${provider === 'SourceForge' ? 'selected' : ''}>SourceForge</option>
+        <option value="Google Drive" \${provider === 'Google Drive' ? 'selected' : ''}>Google Drive</option>
+        <option value="Mega" \${provider === 'Mega' ? 'selected' : ''}>Mega</option>
+        <option value="MediaFire" \${provider === 'MediaFire' ? 'selected' : ''}>MediaFire</option>
+        <option value="Direct / Other" \${!['GitHub','Catbox','SourceForge','Google Drive','Mega','MediaFire'].includes(provider) ? 'selected' : ''}>Direct / Other</option>
+      </select>
+      <input type="url" placeholder="https://..." value="\${url}" class="mirror-url flex-grow bg-dark-800 border border-dark-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-brand-500">
+      <button type="button" onclick="this.closest('.mirror-row').remove(); updateIndices();" class="text-slate-500 hover:text-red-400 p-1.5 transition">
+        <i class="fa-solid fa-trash-can"></i>
+      </button>
+    \`;
+    container.appendChild(row);
+    updateIndices();
+  }
+
+  function updateIndices() {
+    const rows = document.querySelectorAll('.mirror-row');
+    rows.forEach((row, i) => {
+      row.querySelector('.index-num').innerText = '#' + (i + 1);
+    });
+  }
+
+  async function submitRelease() {
+    const mode = document.querySelector('input[name="mode"]:checked').value;
+    const title = document.getElementById('title').value;
+    const slug = document.getElementById('slug').value;
+
+    if (!title || !slug) {
+      alert('Please fill out the Title and Slug.');
+      return;
+    }
+
+    const mirrorRows = document.querySelectorAll('.mirror-row');
+    const mirrors = [];
+    mirrorRows.forEach((row, index) => {
+      const provider = row.querySelector('.mirror-provider').value;
+      const url = row.querySelector('.mirror-url').value;
+      if (url) {
+        mirrors.push({
+          provider,
+          url,
+          weight: 1000 - (index * 10) // Weights scale automatically with playlist rank
+        });
+      }
+    });
+
+    const payload = {
+      title,
+      slug,
+      mode,
+      device: document.getElementById('device').value,
+      version: document.getElementById('version').value,
+      file_size: document.getElementById('file_size').value,
+      md5: document.getElementById('md5').value,
+      sha256: document.getElementById('sha256').value,
+      changelog: document.getElementById('changelog').value,
+      mirrors
+    };
+
+    const res = await fetch('/admin/release', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      window.location.reload();
+    } else {
+      alert('Failed to save release. Make sure slug is unique.');
+    }
+  }
+
+  function copyBBCode(title, url) {
+    const bbcode = \`[SIZE=4][B]\${title}[/B][/SIZE]\n[URL='\${url}'][B][COLOR=#f97316]Download via Mirrors (Fast & Direct)[/COLOR][/B][/URL]\`;
+    navigator.clipboard.writeText(bbcode);
+    alert('Copied XDA BBCode to clipboard! You can paste this right into your XDA thread post.');
+  }
+</script>
+` }) %>
