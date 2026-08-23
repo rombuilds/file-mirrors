@@ -7,8 +7,8 @@ services:
       - "3005:3000"
     environment:
       - PORT=3000
-      - ADMIN_PASSWORD=your_secure_password_here
-      - SESSION_SECRET=change_this_to_a_long_random_string
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin123}
+      - SESSION_SECRET=${SESSION_SECRET:-secret-xda-mirror-key}
       - DATA_DIR=/data
     volumes:
       - mirror_data:/data
