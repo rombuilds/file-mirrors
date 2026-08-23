@@ -62,7 +62,9 @@
             <p class="text-sm">No releases created yet.</p>
           </div>
         <% } else { %>
-          <% releases.forEach(r => { %>
+          <% releases.forEach(r => { 
+            const releaseBase64 = Buffer.from(JSON.stringify(r)).toString('base64');
+          %>
             <div class="p-4 sm:p-5 flex flex-col gap-3 hover:bg-dark-800/30 transition">
               <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div class="space-y-1">
@@ -82,11 +84,11 @@
                 </div>
 
                 <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
-                  <button onclick="openEditModal(<%= r.id %>)" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1" title="Edit Release">
-                    <i class="fa-solid fa-pen-to-square text-brand-500"></i> Edit
+                  <button type="button" onclick="openEditModal(this)" data-json="<%= releaseBase64 %>" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1" title="Edit Release">
+                    <i class="fa-solid fa-pen-to-square text-brand-500 pointer-events-none"></i> Edit
                   </button>
-                  <button onclick="openBBCodeModal(<%= r.id %>)" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1" title="Copy XDA BBCode">
-                    <i class="fa-solid fa-code text-brand-500"></i> BBCode
+                  <button type="button" onclick="openBBCodeModal(this)" data-json="<%= releaseBase64 %>" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1" title="Copy XDA BBCode">
+                    <i class="fa-solid fa-code text-brand-500 pointer-events-none"></i> BBCode
                   </button>
                   <a href="/<%= r.slug %>" target="_blank" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700">
                     <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -173,7 +175,7 @@
         <h3 id="modalHeading" class="text-lg font-bold text-white">Create New Release</h3>
         <p class="text-xs text-slate-400">Hosts will automatically sort by your Universal Priority</p>
       </div>
-      <button onclick="document.getElementById('releaseModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+      <button type="button" onclick="document.getElementById('releaseModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
     </div>
@@ -264,10 +266,10 @@
     </form>
 
     <div class="p-6 border-t border-dark-800 bg-dark-900 flex justify-end gap-3">
-      <button onclick="document.getElementById('releaseModal').classList.add('hidden')" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition">
+      <button type="button" onclick="document.getElementById('releaseModal').classList.add('hidden')" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition">
         Cancel
       </button>
-      <button onclick="submitRelease()" id="btnSubmitRelease" class="px-6 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-brand-500/20">
+      <button type="button" onclick="submitRelease()" id="btnSubmitRelease" class="px-6 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-brand-500/20">
         Publish Release
       </button>
     </div>
@@ -283,7 +285,7 @@
         <h3 class="text-base font-bold text-white"><i class="fa-solid fa-code text-brand-500 mr-1.5"></i>XDA Forum BBCode</h3>
         <p class="text-xs text-slate-400">Ready to paste directly into your XDA thread</p>
       </div>
-      <button onclick="document.getElementById('bbcodeModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+      <button type="button" onclick="document.getElementById('bbcodeModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
     </div>
@@ -300,39 +302,43 @@
 
       <textarea id="bbcodeOutput" rows="6" readonly class="w-full bg-dark-950 border border-dark-800 rounded-2xl p-3 text-xs font-mono text-slate-200 select-all focus:outline-none focus:border-brand-500"></textarea>
 
-      <button onclick="copyBBCodeToClipboard()" class="w-full py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
+      <button type="button" onclick="copyBBCodeToClipboard()" class="w-full py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
         <i class="fa-regular fa-copy" id="bbCopyIcon"></i> <span id="bbCopyText">Copy BBCode</span>
       </button>
     </div>
   </div>
 </div>
 
-<!-- DATA SCRIPTS -->
-<script id="hosts-data" type="application/json">
-  <%- JSON.stringify(hosts) %>
-</script>
-<script id="releases-data" type="application/json">
-  <%- JSON.stringify(releases) %>
-</script>
-
 <script>
-  const globalHosts = JSON.parse(document.getElementById('hosts-data').textContent);
-  const allReleases = JSON.parse(document.getElementById('releases-data').textContent);
   let activeBBCodeRelease = null;
   const currentHost = "<%= host %>";
   const currentProtocol = "<%= protocol %>";
+  const globalHosts = JSON.parse(decodeURIComponent(escape(atob("<%= Buffer.from(JSON.stringify(hosts)).toString('base64') %>"))));
+
+  // Helper to safely parse release from button dataset
+  function getReleaseFromBtn(btn) {
+    try {
+      const base64 = btn.getAttribute('data-json');
+      return JSON.parse(decodeURIComponent(escape(atob(base64))));
+    } catch (e) {
+      console.error('Error decoding release:', e);
+      return null;
+    }
+  }
 
   document.addEventListener('DOMContentLoaded', () => {
     const hostListEl = document.getElementById('universalHostsList');
-    Sortable.create(hostListEl, {
-      animation: 150,
-      handle: '.drag-handle',
-      ghostClass: 'ghost-item',
-      onEnd: async () => {
-        updateHostRanks();
-        await saveUniversalHostOrder();
-      }
-    });
+    if (hostListEl) {
+      Sortable.create(hostListEl, {
+        animation: 150,
+        handle: '.drag-handle',
+        ghostClass: 'ghost-item',
+        onEnd: async () => {
+          updateHostRanks();
+          await saveUniversalHostOrder();
+        }
+      });
+    }
   });
 
   function updateHostRanks() {
@@ -370,7 +376,8 @@
       body: JSON.stringify({ name })
     });
 
-    if (res.ok) window.location.reload()
+    if (res.ok) window.location.reload();
+  }
 
   async function deleteHost(id) {
     if (!confirm('Remove this host from universal list?')) return;
@@ -434,8 +441,8 @@
   }
 
   // ==================== EDIT MODAL OPEN ====================
-  function openEditModal(releaseId) {
-    const r = allReleases.find(item => item.id == releaseId);
+  function openEditModal(btn) {
+    const r = getReleaseFromBtn(btn);
     if (!r) return;
 
     document.getElementById('editReleaseId').value = r.id;
@@ -520,8 +527,8 @@
   }
 
   // ==================== ROBUST BBCODE GENERATOR ====================
-  function openBBCodeModal(releaseId) {
-    const r = allReleases.find(item => item.id == releaseId);
+  function openBBCodeModal(btn) {
+    const r = getReleaseFromBtn(btn);
     if (!r) return;
 
     activeBBCodeRelease = r;
