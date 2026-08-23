@@ -1,4 +1,5 @@
-<%- include('layout', { body: `
+<%- include('header') %>
+
 <div class="max-w-md w-full mx-auto px-4 py-12">
   <div class="bg-dark-900 border border-dark-700/80 rounded-3xl p-8 shadow-2xl backdrop-blur">
     <div class="w-12 h-12 bg-brand-500/10 text-brand-500 rounded-2xl flex items-center justify-center mx-auto mb-4 text-xl border border-brand-500/20">
@@ -7,7 +8,9 @@
     <h1 class="text-xl font-bold text-center text-white mb-2">Mirror Hub Admin</h1>
     <p class="text-xs text-center text-slate-400 mb-6">Enter your password to manage releases</p>
 
-    ${error ? `<div class="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold text-center">${error}</div>` : ''}
+    <% if (error) { %>
+      <div class="p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold text-center"><%= error %></div>
+    <% } %>
 
     <form action="/admin/login" method="POST" class="space-y-4">
       <div>
@@ -20,4 +23,5 @@
     </form>
   </div>
 </div>
-` }) %>
+
+<%- include('footer') %>
