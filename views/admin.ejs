@@ -14,7 +14,7 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button onclick="document.getElementById('createModal').classList.remove('hidden')" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition flex items-center gap-2 shadow-lg shadow-brand-500/20">
+      <button onclick="openCreateModal()" class="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition flex items-center gap-2 shadow-lg shadow-brand-500/20">
         <i class="fa-solid fa-plus"></i> New Release
       </button>
       <a href="/admin/logout" class="px-3 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700">
@@ -49,7 +49,7 @@
 
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
     
-    <!-- RELEASES LIST WITH ANALYTICS -->
+    <!-- RELEASES LIST -->
     <div class="lg:col-span-2 space-y-4">
       <div class="flex items-center justify-between">
         <h2 class="font-bold text-white text-sm">Active Releases (<%= releases.length %>)</h2>
@@ -81,8 +81,11 @@
                   </div>
                 </div>
 
-                <div class="flex items-center gap-2 shrink-0">
-                  <button onclick="openBBCodeModal(<%= JSON.stringify(r) %>)" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1.5" title="Copy XDA BBCode">
+                <div class="flex items-center gap-1.5 shrink-0 flex-wrap">
+                  <button onclick="openEditModal(<%= r.id %>)" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1" title="Edit Release">
+                    <i class="fa-solid fa-pen-to-square text-brand-500"></i> Edit
+                  </button>
+                  <button onclick="openBBCodeModal(<%= r.id %>)" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700 flex items-center gap-1" title="Copy XDA BBCode">
                     <i class="fa-solid fa-code text-brand-500"></i> BBCode
                   </button>
                   <a href="/<%= r.slug %>" target="_blank" class="px-2.5 py-1.5 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition border border-dark-700">
@@ -161,67 +164,36 @@
   </div>
 </div>
 
-<!-- ==================== BBCODE GENERATOR MODAL ==================== -->
-<div id="bbcodeModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-  <div class="bg-dark-900 border border-dark-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
-    <div class="p-5 border-b border-dark-800 flex items-center justify-between">
-      <div>
-        <h3 class="text-base font-bold text-white"><i class="fa-solid fa-code text-brand-500 mr-1.5"></i>XDA Forum BBCode</h3>
-        <p class="text-xs text-slate-400">Ready to paste directly into your XDA thread</p>
-      </div>
-      <button onclick="document.getElementById('bbcodeModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
-        <i class="fa-solid fa-xmark text-lg"></i>
-      </button>
-    </div>
-
-    <div class="p-5 space-y-4">
-      <div class="flex gap-2">
-        <button type="button" onclick="switchBBCodeStyle('button')" id="btnBBStyleButton" class="flex-1 py-1.5 text-xs font-bold rounded-xl bg-brand-500 text-white transition">
-          Direct Button
-        </button>
-        <button type="button" onclick="switchBBCodeStyle('full')" id="btnBBStyleFull" class="flex-1 py-1.5 text-xs font-bold rounded-xl bg-dark-800 text-slate-300 border border-dark-700 transition">
-          Full Release Post
-        </button>
-      </div>
-
-      <textarea id="bbcodeOutput" rows="6" readonly class="w-full bg-dark-950 border border-dark-800 rounded-2xl p-3 text-xs font-mono text-slate-200 select-all focus:outline-none focus:border-brand-500"></textarea>
-
-      <button onclick="copyBBCodeToClipboard()" class="w-full py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
-        <i class="fa-regular fa-copy" id="bbCopyIcon"></i> <span id="bbCopyText">Copy BBCode</span>
-      </button>
-    </div>
-  </div>
-</div>
-
-<!-- CREATE RELEASE MODAL -->
-<div id="createModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+<!-- ==================== RELEASE CREATE / EDIT MODAL ==================== -->
+<div id="releaseModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
   <div class="bg-dark-900 border border-dark-700 rounded-3xl w-full max-w-2xl max-h-[90vh] flex flex-col shadow-2xl overflow-hidden">
     
     <div class="p-6 border-b border-dark-800 flex items-center justify-between">
       <div>
-        <h3 class="text-lg font-bold text-white">Create New Release</h3>
+        <h3 id="modalHeading" class="text-lg font-bold text-white">Create New Release</h3>
         <p class="text-xs text-slate-400">Hosts will automatically sort by your Universal Priority</p>
       </div>
-      <button onclick="document.getElementById('createModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+      <button onclick="document.getElementById('releaseModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
         <i class="fa-solid fa-xmark text-lg"></i>
       </button>
     </div>
 
     <form id="releaseForm" class="p-6 overflow-y-auto space-y-5 flex-grow">
+      <input type="hidden" id="editReleaseId" value="">
       
       <!-- MODE TOGGLE -->
       <div>
         <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Display Style Mode</label>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex items-center gap-3 p-3 rounded-2xl border border-dark-700 bg-dark-800 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/10">
-            <input type="radio" name="mode" value="simple" onchange="toggleMode('simple')" class="accent-brand-500">
+            <input type="radio" id="modeSimple" name="mode" value="simple" onchange="toggleMode('simple')" class="accent-brand-500">
             <div>
               <div class="text-sm font-bold text-white">Simple</div>
               <div class="text-[11px] text-slate-400">Just filename & mirrors</div>
             </div>
           </label>
           <label class="flex items-center gap-3 p-3 rounded-2xl border border-dark-700 bg-dark-800 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-500/10">
-            <input type="radio" name="mode" value="complex" checked onchange="toggleMode('complex')" class="accent-brand-500">
+            <input type="radio" id="modeComplex" name="mode" value="complex" checked onchange="toggleMode('complex')" class="accent-brand-500">
             <div>
               <div class="text-sm font-bold text-white">Complex</div>
               <div class="text-[11px] text-slate-400">Hashes, device, changelog</div>
@@ -292,10 +264,10 @@
     </form>
 
     <div class="p-6 border-t border-dark-800 bg-dark-900 flex justify-end gap-3">
-      <button onclick="document.getElementById('createModal').classList.add('hidden')" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition">
+      <button onclick="document.getElementById('releaseModal').classList.add('hidden')" class="px-4 py-2 bg-dark-800 hover:bg-dark-700 text-slate-300 text-xs font-semibold rounded-xl transition">
         Cancel
       </button>
-      <button onclick="submitRelease()" class="px-6 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-brand-500/20">
+      <button onclick="submitRelease()" id="btnSubmitRelease" class="px-6 py-2 bg-brand-500 hover:bg-brand-600 text-white text-xs font-semibold rounded-xl transition shadow-lg shadow-brand-500/20">
         Publish Release
       </button>
     </div>
@@ -303,12 +275,49 @@
   </div>
 </div>
 
+<!-- ==================== BBCODE GENERATOR MODAL ==================== -->
+<div id="bbcodeModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+  <div class="bg-dark-900 border border-dark-700 rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col">
+    <div class="p-5 border-b border-dark-800 flex items-center justify-between">
+      <div>
+        <h3 class="text-base font-bold text-white"><i class="fa-solid fa-code text-brand-500 mr-1.5"></i>XDA Forum BBCode</h3>
+        <p class="text-xs text-slate-400">Ready to paste directly into your XDA thread</p>
+      </div>
+      <button onclick="document.getElementById('bbcodeModal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+        <i class="fa-solid fa-xmark text-lg"></i>
+      </button>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <div class="flex gap-2">
+        <button type="button" onclick="switchBBCodeStyle('button')" id="btnBBStyleButton" class="flex-1 py-1.5 text-xs font-bold rounded-xl bg-brand-500 text-white transition">
+          Direct Button
+        </button>
+        <button type="button" onclick="switchBBCodeStyle('full')" id="btnBBStyleFull" class="flex-1 py-1.5 text-xs font-bold rounded-xl bg-dark-800 text-slate-300 border border-dark-700 transition">
+          Full Release Post
+        </button>
+      </div>
+
+      <textarea id="bbcodeOutput" rows="6" readonly class="w-full bg-dark-950 border border-dark-800 rounded-2xl p-3 text-xs font-mono text-slate-200 select-all focus:outline-none focus:border-brand-500"></textarea>
+
+      <button onclick="copyBBCodeToClipboard()" class="w-full py-2.5 bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-brand-500/20">
+        <i class="fa-regular fa-copy" id="bbCopyIcon"></i> <span id="bbCopyText">Copy BBCode</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- DATA SCRIPTS -->
 <script id="hosts-data" type="application/json">
   <%- JSON.stringify(hosts) %>
+</script>
+<script id="releases-data" type="application/json">
+  <%- JSON.stringify(releases) %>
 </script>
 
 <script>
   const globalHosts = JSON.parse(document.getElementById('hosts-data').textContent);
+  const allReleases = JSON.parse(document.getElementById('releases-data').textContent);
   let activeBBCodeRelease = null;
   const currentHost = "<%= host %>";
   const currentProtocol = "<%= protocol %>";
@@ -324,10 +333,6 @@
         await saveUniversalHostOrder();
       }
     });
-
-    addMirrorInputRow('GitHub Releases', '');
-    addMirrorInputRow('Catbox', '');
-    addMirrorInputRow('Google Drive', '');
   });
 
   function updateHostRanks() {
@@ -365,8 +370,7 @@
       body: JSON.stringify({ name })
     });
 
-    if (res.ok) window.location.reload();
-  }
+    if (res.ok) window.location.reload()
 
   async function deleteHost(id) {
     if (!confirm('Remove this host from universal list?')) return;
@@ -404,7 +408,71 @@
     container.appendChild(row);
   }
 
+  // ==================== CREATE MODAL OPEN ====================
+  function openCreateModal() {
+    document.getElementById('editReleaseId').value = '';
+    document.getElementById('modalHeading').innerText = 'Create New Release';
+    document.getElementById('btnSubmitRelease').innerText = 'Publish Release';
+    document.getElementById('title').value = '';
+    document.getElementById('slug').value = '';
+    document.getElementById('device').value = '';
+    document.getElementById('version').value = '';
+    document.getElementById('file_size').value = '';
+    document.getElementById('md5').value = '';
+    document.getElementById('sha256').value = '';
+    document.getElementById('changelog').value = '';
+    document.getElementById('modeComplex').checked = true;
+    toggleMode('complex');
+
+    const container = document.getElementById('releaseMirrorsContainer');
+    container.innerHTML = '';
+    addMirrorInputRow('GitHub Releases', '');
+    addMirrorInputRow('Catbox', '');
+    addMirrorInputRow('Google Drive', '');
+
+    document.getElementById('releaseModal').classList.remove('hidden');
+  }
+
+  // ==================== EDIT MODAL OPEN ====================
+  function openEditModal(releaseId) {
+    const r = allReleases.find(item => item.id == releaseId);
+    if (!r) return;
+
+    document.getElementById('editReleaseId').value = r.id;
+    document.getElementById('modalHeading').innerText = 'Edit Release: ' + r.title;
+    document.getElementById('btnSubmitRelease').innerText = 'Save Changes';
+    document.getElementById('title').value = r.title || '';
+    document.getElementById('slug').value = r.slug || '';
+    document.getElementById('device').value = r.device || '';
+    document.getElementById('version').value = r.version || '';
+    document.getElementById('file_size').value = r.file_size || '';
+    document.getElementById('md5').value = r.md5 || '';
+    document.getElementById('sha256').value = r.sha256 || '';
+    document.getElementById('changelog').value = r.changelog || '';
+
+    if (r.mode === 'simple') {
+      document.getElementById('modeSimple').checked = true;
+      toggleMode('simple');
+    } else {
+      document.getElementById('modeComplex').checked = true;
+      toggleMode('complex');
+    }
+
+    const container = document.getElementById('releaseMirrorsContainer');
+    container.innerHTML = '';
+    if (r.mirrors && r.mirrors.length > 0) {
+      r.mirrors.forEach(m => addMirrorInputRow(m.provider, m.url));
+    } else {
+      addMirrorInputRow('GitHub Releases', '');
+    }
+
+    document.getElementById('releaseModal').classList.remove('hidden');
+  }
+
+  // ==================== SUBMIT CREATE / EDIT ====================
   async function submitRelease() {
+    const editId = document.getElementById('editReleaseId').value;
+    const isEdit = Boolean(editId);
     const mode = document.querySelector('input[name="mode"]:checked').value;
     const title = document.getElementById('title').value.trim();
     const slug = document.getElementById('slug').value.trim();
@@ -435,22 +503,28 @@
       mirrors
     };
 
-    const res = await fetch('/admin/release', {
+    const targetUrl = isEdit ? `/admin/release/${editId}/edit` : '/admin/release';
+
+    const res = await fetch(targetUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
 
-    if (res.ok) {
+    const result = await res.json();
+    if (res.ok && result.success) {
       window.location.reload();
     } else {
-      alert('Failed to save release. Ensure slug is unique.');
+      alert(result.error || 'Failed to save release.');
     }
   }
 
   // ==================== ROBUST BBCODE GENERATOR ====================
-  function openBBCodeModal(release) {
-    activeBBCodeRelease = release;
+  function openBBCodeModal(releaseId) {
+    const r = allReleases.find(item => item.id == releaseId);
+    if (!r) return;
+
+    activeBBCodeRelease = r;
     switchBBCodeStyle('button');
     document.getElementById('bbcodeModal').classList.remove('hidden');
   }
@@ -488,7 +562,6 @@
     textarea.setSelectionRange(0, 99999);
 
     try {
-      // Mobile-safe fallback
       document.execCommand('copy');
     } catch (e) {
       if (navigator.clipboard) {
