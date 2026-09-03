@@ -38,6 +38,8 @@ db.exec(`
     md5 TEXT,
     sha256 TEXT,
     changelog TEXT,
+    enable_ads INTEGER DEFAULT 0,
+    ad_provider TEXT DEFAULT 'none',
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -58,6 +60,10 @@ db.exec(`
     clicked_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+
+// Backwards-compatibility migrations for existing SQLite databases
+try { db.exec("ALTER TABLE releases ADD COLUMN enable_ads INTEGER DEFAULT 0"); } catch (e) {}
+try { db.exec("ALTER TABLE releases ADD COLUMN ad_provider TEXT DEFAULT 'none'"); } catch (e) {}
 
 // Seed default universal hosts if empty
 const hostCount = db.prepare('SELECT COUNT(*) as count FROM hosts').get().count;
@@ -160,12 +166,15 @@ app.get('/admin', requireAuth, (req, res) => {
 
 // CREATE RELEASE
 app.post('/admin/release', requireAuth, (req, res) => {
-  const { slug, title, mode, device, version, file_size, md5, sha256, changelog, mirrors } = req.body;
+  const { slug, title, mode, device, version, file_size, md5, sha256, changelog, mirrors, enable_ads, ad_provider } = req.body;
   
   try {
+    const isAds = (enable_ads === 1 || enable_ads === '1' || enable_ads === true) ? 1 : 0;
+    const provider = isAds ? (ad_provider || 'aads') : 'none';
+
     const insertRelease = db.prepare(`
-      INSERT INTO releases (slug, title, mode, device, version, file_size, md5, sha256, changelog)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO releases (slug, title, mode, device, version, file_size, md5, sha256, changelog, enable_ads, ad_provider)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const info = insertRelease.run(
@@ -177,7 +186,9 @@ app.post('/admin/release', requireAuth, (req, res) => {
       file_size || null,
       md5 ? md5.trim() : null,
       sha256 ? sha256.trim() : null,
-      changelog || null
+      changelog || null,
+      isAds,
+      provider
     );
 
     const releaseId = info.lastInsertRowid;
@@ -200,12 +211,15 @@ app.post('/admin/release', requireAuth, (req, res) => {
 // EDIT RELEASE
 app.post('/admin/release/:id/edit', requireAuth, (req, res) => {
   const releaseId = req.params.id;
-  const { slug, title, mode, device, version, file_size, md5, sha256, changelog, mirrors } = req.body;
+  const { slug, title, mode, device, version, file_size, md5, sha256, changelog, mirrors, enable_ads, ad_provider } = req.body;
 
   try {
+    const isAds = (enable_ads === 1 || enable_ads === '1' || enable_ads === true) ? 1 : 0;
+    const provider = isAds ? (ad_provider || 'aads') : 'none';
+
     const updateRelease = db.prepare(`
       UPDATE releases 
-      SET slug = ?, title = ?, mode = ?, device = ?, version = ?, file_size = ?, md5 = ?, sha256 = ?, changelog = ?
+      SET slug = ?, title = ?, mode = ?, device = ?, version = ?, file_size = ?, md5 = ?, sha256 = ?, changelog = ?, enable_ads = ?, ad_provider = ?
       WHERE id = ?
     `);
 
@@ -219,6 +233,8 @@ app.post('/admin/release/:id/edit', requireAuth, (req, res) => {
       md5 ? md5.trim() : null,
       sha256 ? sha256.trim() : null,
       changelog || null,
+      isAds,
+      provider,
       releaseId
     );
 
@@ -331,10 +347,23 @@ app.get('/:slug', (req, res) => {
 
   const changelogHtml = release.changelog ? marked.parse(release.changelog) : null;
 
+  // Decide active ad network (strict 0/false by default)
+  let activeNetwork = 'none';
+  const hasAds = Boolean(release.enable_ads);
+  if (hasAds) {
+    if (release.ad_provider === 'split') {
+      activeNetwork = Math.random() < 0.5 ? 'aads' : 'adsterra';
+    } else {
+      activeNetwork = release.ad_provider || 'aads';
+    }
+  }
+
   res.render('download', { 
     release, 
     mirrors, 
     changelogHtml,
+    showAds: hasAds,
+    adNetwork: activeNetwork,
     host: req.get('host'), 
     protocol: req.protocol 
   });
