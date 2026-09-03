@@ -73,6 +73,11 @@
                     <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full <%= r.mode === 'simple' ? 'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20' : 'bg-brand-500/10 text-brand-400 border border-brand-500/20' %>">
                       <%= r.mode %>
                     </span>
+                    <% if (r.enable_ads) { %>
+                      <span class="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                        Ads: <%= r.ad_provider %>
+                      </span>
+                    <% } %>
                   </div>
                   <div class="text-xs text-slate-400 flex flex-wrap items-center gap-3">
                     <span class="font-mono text-brand-500">/<%= r.slug %></span>
@@ -252,6 +257,28 @@
         </div>
       </div>
 
+      <!-- ==================== AD SETTINGS (OFF BY DEFAULT) ==================== -->
+      <div class="p-3.5 rounded-2xl border border-dark-700 bg-dark-800/60 space-y-3">
+        <label class="flex items-center gap-3 cursor-pointer">
+          <!-- Unchecked by default -->
+          <input type="checkbox" id="enableAds" onchange="toggleAdProviderSelect(this.checked)" class="w-4 h-4 rounded border-dark-600 bg-dark-900 text-brand-500 focus:ring-brand-500 accent-brand-500">
+          <div>
+            <div class="text-sm font-bold text-white">Enable Ads for this release</div>
+            <div class="text-[11px] text-slate-400">Disabled by default. If unchecked, no ads are displayed.</div>
+          </div>
+        </label>
+
+        <!-- Hidden unless checkbox is checked -->
+        <div id="adProviderContainer" class="hidden pt-2 border-t border-dark-700/60">
+          <label class="block text-xs font-semibold text-slate-400 mb-1">Ad Network Provider</label>
+          <select id="adProvider" class="w-full bg-dark-900 border border-dark-700 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-brand-500">
+            <option value="aads">A-Ads (Clean Crypto / Finance)</option>
+            <option value="adsterra">Adsterra (Native Banner)</option>
+            <option value="split">Split (50/50 Random Rotation)</option>
+          </select>
+        </div>
+      </div>
+
       <!-- MIRROR LINKS SECTION -->
       <div>
         <div class="flex items-center justify-between mb-2">
@@ -315,7 +342,6 @@
   const currentProtocol = "<%= protocol %>";
   const globalHosts = JSON.parse(decodeURIComponent(escape(atob("<%= Buffer.from(JSON.stringify(hosts)).toString('base64') %>"))));
 
-  // Helper to safely parse release from button dataset
   function getReleaseFromBtn(btn) {
     try {
       const base64 = btn.getAttribute('data-json');
@@ -394,6 +420,15 @@
     }
   }
 
+  function toggleAdProviderSelect(checked) {
+    const container = document.getElementById('adProviderContainer');
+    if (checked) {
+      container.classList.remove('hidden');
+    } else {
+      container.classList.add('hidden');
+    }
+  }
+
   function addMirrorInputRow(provider = '', url = '') {
     const container = document.getElementById('releaseMirrorsContainer');
     const row = document.createElement('div');
@@ -431,6 +466,11 @@
     document.getElementById('modeComplex').checked = true;
     toggleMode('complex');
 
+    // Reset ad settings: OFF by default
+    document.getElementById('enableAds').checked = false;
+    toggleAdProviderSelect(false);
+    document.getElementById('adProvider').value = 'aads';
+
     const container = document.getElementById('releaseMirrorsContainer');
     container.innerHTML = '';
     addMirrorInputRow('GitHub Releases', '');
@@ -465,6 +505,12 @@
       toggleMode('complex');
     }
 
+    // Set ad values from release record
+    const hasAds = Boolean(r.enable_ads);
+    document.getElementById('enableAds').checked = hasAds;
+    toggleAdProviderSelect(hasAds);
+    document.getElementById('adProvider').value = r.ad_provider || 'aads';
+
     const container = document.getElementById('releaseMirrorsContainer');
     container.innerHTML = '';
     if (r.mirrors && r.mirrors.length > 0) {
@@ -497,6 +543,9 @@
       if (url) mirrors.push({ provider, url });
     });
 
+    const enable_ads = document.getElementById('enableAds').checked ? 1 : 0;
+    const ad_provider = enable_ads ? document.getElementById('adProvider').value : 'none';
+
     const payload = {
       title,
       slug,
@@ -507,6 +556,8 @@
       md5: document.getElementById('md5').value,
       sha256: document.getElementById('sha256').value,
       changelog: document.getElementById('changelog').value,
+      enable_ads,
+      ad_provider,
       mirrors
     };
 
